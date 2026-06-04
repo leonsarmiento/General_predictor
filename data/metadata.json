@@ -1,0 +1,23 @@
+{
+  "total_cells": 9404,
+  "cells_with_data": 6788,
+  "continuous_features": [
+    "gravity_min",
+    "gravity_max",
+    "gravity_mean",
+    "freeair_min",
+    "freeair_max",
+    "freeair_mean",
+    "bouguer_min",
+    "bouguer_max",
+    "bouguer_mean"
+  ],
+  "categorical_features": 1982,
+  "total_features": 1991,
+  "grid_bounds": {
+    "min_lat": -30.3159315,
+    "max_lat": -10.515931499999999,
+    "min_lon": -57.00818241924311,
+    "max_lon": -35.99263262074073
+  }
+}
