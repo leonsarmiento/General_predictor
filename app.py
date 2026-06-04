@@ -268,7 +268,7 @@ def build_feature_matrix(df, geo_sparse, sparse_ids, matched_ids):
 
 
 def create_prediction_map(grid_gdf, df_valid, probs, points):
-    """Cria o mapa de predição."""
+    """Cria o mapa de predicao com classificacao por quantis."""
     import math
     
     fig, ax = plt.subplots(figsize=(30, 30), dpi=100)
@@ -296,20 +296,42 @@ def create_prediction_map(grid_gdf, df_valid, probs, points):
     except:
         pass
     
-    # Colormap
-    cmap = LinearSegmentedColormap.from_list('suitability', [
-        '#1a1a2e', '#1b4965', '#5ab77e', '#f0e448', '#f5a623', '#d62839'
-    ], N=256)
+    # ── Quantile classification: 5 bins from top 50% ──
+    n_cells = len(valid)
+    threshold_50 = np.percentile(valid['prob'].values, 50)
+    top50 = valid[valid['prob'] >= threshold_50].copy()
     
-    low = valid[valid['prob'] < 0.5]
-    high = valid[valid['prob'] >= 0.5]
+    # 5 quantile bins within the top 50%
+    quantiles = np.percentile(top50['prob'].values, [20, 40, 60, 80])
     
-    if len(low) > 0:
-        low.plot(column='prob', cmap=cmap, linewidth=0.0, edgecolor='none',
-                 alpha=0.15, ax=ax, zorder=3, vmin=0, vmax=1)
-    if len(high) > 0:
-        high.plot(column='prob', cmap=cmap, linewidth=0.2, edgecolor='#333',
-                  alpha=0.55, ax=ax, zorder=4, vmin=0, vmax=1)
+    bin_colors = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026']
+    bin_labels = ['Top 41-50%', 'Top 31-40%', 'Top 21-30%', 'Top 11-20%', 'Top 10%']
+    bin_alphas = [0.25, 0.35, 0.45, 0.55, 0.70]
+    
+    # Assign bin to each cell
+    top50_values = top50['prob'].values
+    top50_bins = np.zeros(len(top50), dtype=int)
+    for i in range(len(top50)):
+        if top50_values[i] >= quantiles[3]:      # top 10%
+            top50_bins[i] = 4
+        elif top50_values[i] >= quantiles[2]:     # top 20%
+            top50_bins[i] = 3
+        elif top50_values[i] >= quantiles[1]:     # top 30%
+            top50_bins[i] = 2
+        elif top50_values[i] >= quantiles[0]:     # top 40%
+            top50_bins[i] = 1
+        else:                                      # top 50%
+            top50_bins[i] = 0
+    
+    top50['bin'] = top50_bins
+    
+    # Plot each bin separately
+    for bin_idx in range(5):
+        cells = top50[top50['bin'] == bin_idx]
+        if len(cells) > 0:
+            cells.plot(ax=ax, facecolor=bin_colors[bin_idx],
+                       edgecolor='#555555', linewidth=0.15,
+                       alpha=bin_alphas[bin_idx], zorder=3 + bin_idx)
     
     # Plot input points
     def lonlat_to_webmerc(lat, lon):
@@ -336,13 +358,15 @@ def create_prediction_map(grid_gdf, df_valid, probs, points):
             fontsize=9, color='#666', style='italic',
             fontfamily='monospace')
     
-    # Legend with repo info
+    # Legend with quantile bins
     legend_elements = [
-        plt.Line2D([0],[0], marker='o', color='w', label='Ponto de ocorrencia',
-            markerfacecolor='#FF6D00', markersize=10, linestyle='None', markeredgecolor='white'),
-        mpatches.Patch(facecolor='#d62839', edgecolor='#333', alpha=0.6, label='Alta suscetibilidade'),
-        mpatches.Patch(facecolor='#5ab77e', edgecolor='#333', alpha=0.4, label='Media suscetibilidade'),
-        mpatches.Patch(facecolor='#1b4965', edgecolor='none', alpha=0.2, label='Baixa suscetibilidade'),
+        plt.Line2D([0],[0], marker='*', color='w', label='Ponto de ocorrencia',
+            markerfacecolor='#FF6D00', markersize=12, linestyle='None', markeredgecolor='white'),
+        mpatches.Patch(facecolor='#bd0026', edgecolor='#555', alpha=0.70, label='Top 10%'),
+        mpatches.Patch(facecolor='#f03b20', edgecolor='#555', alpha=0.55, label='Top 11-20%'),
+        mpatches.Patch(facecolor='#fd8d3c', edgecolor='#555', alpha=0.45, label='Top 21-30%'),
+        mpatches.Patch(facecolor='#fecc5c', edgecolor='#555', alpha=0.35, label='Top 31-40%'),
+        mpatches.Patch(facecolor='#ffffb2', edgecolor='#555', alpha=0.25, label='Top 41-50%'),
     ]
     legend = ax.legend(handles=legend_elements, loc='lower left', fontsize=10, facecolor='white',
         edgecolor='#999', labelcolor='#333', framealpha=0.92,
