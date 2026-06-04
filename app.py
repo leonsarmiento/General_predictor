@@ -18,6 +18,7 @@ import geopandas as gpd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.optimize import minimize
 from scipy.special import logsumexp
